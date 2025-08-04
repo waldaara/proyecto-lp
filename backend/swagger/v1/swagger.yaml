@@ -1,0 +1,462 @@
+openapi: 3.0.1
+info:
+  title: Plataforma de Gestión de Eventos Comunitarios Sostenibles - API
+  version: v1
+  description: 'API RESTful para la gestión de eventos comunitarios sostenibles (mingas, sembratones y actividades verdes). Permite crear, gestionar y participar en eventos.'
+  contact:
+    name: Equipo de Desarrollo
+    email: soporte@eventos-comunitarios.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: http://localhost:3000
+    description: Servidor de desarrollo local
+  - url: https://api.eventos-comunitarios.com
+    description: Servidor de producción
+paths:
+  /api/v1/events:
+    get:
+      summary: Lista todos los eventos
+      description: Retorna una lista de todos los eventos disponibles, con filtros opcionales por fecha
+      tags:
+        - Eventos
+      parameters:
+        - name: from_date
+          in: query
+          description: 'Filtrar eventos desde esta fecha (YYYY-MM-DD)'
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          description: 'Filtrar eventos hasta esta fecha (YYYY-MM-DD)'
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: upcoming
+          in: query
+          description: 'Si es true, solo muestra eventos futuros'
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Lista de eventos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+              example:
+                - id: 1
+                  title: Minga de Limpieza del Parque Central
+                  description: Actividad comunitaria para la limpieza y mantenimiento del parque central.
+                  date: '2024-02-15T09:00:00Z'
+                  location: 'Parque Central, Calle Principal #123'
+                  participants_count: 15
+                  created_at: '2024-01-15T10:00:00Z'
+                  updated_at: '2024-01-15T10:00:00Z'
+                - id: 2
+                  title: Sembratón de Árboles Nativos
+                  description: Jornada de siembra de especies nativas en la zona rural.
+                  date: '2024-02-20T08:00:00Z'
+                  location: 'Sector La Esperanza, km 15 vía rural'
+                  participants_count: 8
+                  created_at: '2024-01-20T14:30:00Z'
+                  updated_at: '2024-01-20T14:30:00Z'
+    post:
+      summary: Crear un nuevo evento
+      description: Crea un nuevo evento comunitario
+      tags:
+        - Eventos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                      example: Minga de Reforestación
+                    description:
+                      type: string
+                      example: Actividad de reforestación en la microcuenca del río.
+                    date:
+                      type: string
+                      format: date-time
+                      example: '2024-03-10T08:00:00Z'
+                    location:
+                      type: string
+                      example: 'Microcuenca del Río Verde, sector norte'
+                  required:
+                    - title
+                    - description
+                    - date
+                    - location
+      responses:
+        '201':
+          description: Evento creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '422':
+          description: Errores de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/events/{id}:
+    parameters:
+      - name: id
+        in: path
+        description: ID del evento
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Obtener detalles de un evento
+      description: Retorna los detalles completos de un evento, incluyendo la lista de participantes
+      tags:
+        - Eventos
+      responses:
+        '200':
+          description: Detalles del evento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventWithParticipants'
+              example:
+                id: 1
+                title: Minga de Limpieza del Parque Central
+                description: Actividad comunitaria para la limpieza y mantenimiento del parque central.
+                date: '2024-02-15T09:00:00Z'
+                location: 'Parque Central, Calle Principal #123'
+                participants_count: 2
+                created_at: '2024-01-15T10:00:00Z'
+                updated_at: '2024-01-15T10:00:00Z'
+                participants:
+                  - id: 1
+                    name: María González
+                    email: maria@email.com
+                    created_at: '2024-01-16T10:00:00Z'
+                  - id: 2
+                    name: Carlos Pérez
+                    email: carlos@email.com
+                    created_at: '2024-01-17T15:30:00Z'
+        '404':
+          description: Evento no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Actualizar un evento
+      description: Actualiza los datos de un evento existente
+      tags:
+        - Eventos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    date:
+                      type: string
+                      format: date-time
+                    location:
+                      type: string
+      responses:
+        '200':
+          description: Evento actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '404':
+          description: Evento no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Errores de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Eliminar un evento
+      description: Elimina un evento y todas sus inscripciones asociadas
+      tags:
+        - Eventos
+      responses:
+        '204':
+          description: Evento eliminado exitosamente
+        '404':
+          description: Evento no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/events/{event_id}/participants:
+    parameters:
+      - name: event_id
+        in: path
+        description: ID del evento
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Lista participantes de un evento
+      description: Retorna la lista de todos los participantes inscritos en un evento específico
+      tags:
+        - Participantes
+      responses:
+        '200':
+          description: Lista de participantes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Participant'
+              example:
+                - id: 1
+                  name: María González
+                  email: maria.gonzalez@email.com
+                  event_id: 1
+                  created_at: '2024-01-16T10:00:00Z'
+                  updated_at: '2024-01-16T10:00:00Z'
+                - id: 2
+                  name: Carlos Pérez
+                  email: carlos.perez@email.com
+                  event_id: 1
+                  created_at: '2024-01-17T15:30:00Z'
+                  updated_at: '2024-01-17T15:30:00Z'
+        '404':
+          description: Evento no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Registrar participación en evento
+      description: Registra a una persona como participante en un evento específico
+      tags:
+        - Participantes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                participant:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      example: Ana Rodríguez
+                      description: Nombre completo del participante
+                    email:
+                      type: string
+                      format: email
+                      example: ana.rodriguez@email.com
+                      description: Correo electrónico del participante
+                  required:
+                    - name
+                    - email
+      responses:
+        '201':
+          description: Participación registrada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Participant'
+              example:
+                id: 3
+                name: Ana Rodríguez
+                email: ana.rodriguez@email.com
+                event_id: 1
+                created_at: '2024-01-18T09:15:00Z'
+                updated_at: '2024-01-18T09:15:00Z'
+        '404':
+          description: Evento no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Errores de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                errors:
+                  - Email ya está registrado para este evento
+                  - Name no puede estar en blanco
+  /api/v1/participants/{id}:
+    parameters:
+      - name: id
+        in: path
+        description: ID del participante
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Obtener detalles de un participante
+      description: Retorna los detalles de un participante específico, incluyendo información del evento
+      tags:
+        - Participantes
+      responses:
+        '200':
+          description: Detalles del participante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipantWithEvent'
+              example:
+                id: 1
+                name: María González
+                email: maria.gonzalez@email.com
+                event_id: 1
+                created_at: '2024-01-16T10:00:00Z'
+                updated_at: '2024-01-16T10:00:00Z'
+                event:
+                  id: 1
+                  title: Minga de Limpieza del Parque Central
+                  date: '2024-02-15T09:00:00Z'
+                  location: 'Parque Central, Calle Principal #123'
+        '404':
+          description: Participante no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Cancelar participación
+      description: Cancela la inscripción de un participante, eliminándolo del evento
+      tags:
+        - Participantes
+      responses:
+        '204':
+          description: Participación cancelada exitosamente
+        '404':
+          description: Participante no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Event:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: Minga de Limpieza del Parque Central
+        description:
+          type: string
+          example: Actividad comunitaria para la limpieza y mantenimiento del parque central de la ciudad.
+        date:
+          type: string
+          format: date-time
+          example: '2024-02-15T09:00:00Z'
+        location:
+          type: string
+          example: 'Parque Central, Calle Principal #123'
+        participants_count:
+          type: integer
+          example: 25
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - title
+        - description
+        - date
+        - location
+    EventWithParticipants:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - type: object
+          properties:
+            participants:
+              type: array
+              items:
+                $ref: '#/components/schemas/Participant'
+    Participant:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: María González
+        email:
+          type: string
+          format: email
+          example: maria.gonzalez@email.com
+        event_id:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - name
+        - email
+    ParticipantWithEvent:
+      allOf:
+        - $ref: '#/components/schemas/Participant'
+        - type: object
+          properties:
+            event:
+              type: object
+              properties:
+                id:
+                  type: integer
+                title:
+                  type: string
+                date:
+                  type: string
+                  format: date-time
+                location:
+                  type: string
+    Error:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            type: string
+        error:
+          type: string
