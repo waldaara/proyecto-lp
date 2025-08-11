@@ -9,6 +9,7 @@ import EditEvent from "./pages/EditEvent";
 import EventDetails from "./pages/EventDetails";
 import Participants from "./pages/Participants";
 import NotFound from "./pages/NotFound";
+import { ApiTest } from "./components/ApiTest";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/evento/:id" element={<EventDetails />} />
           <Route path="/evento/:id/editar" element={<EditEvent />} />
           <Route path="/participantes" element={<Participants />} />
+          <Route path="/api-test" element={<ApiTest />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
