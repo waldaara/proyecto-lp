@@ -1,0 +1,20 @@
+# Favicon PNG de 32x32 píxeles
+
+Para crear un favicon PNG de 32x32 píxeles con el logo de EcoEventos:
+
+1. Usar el archivo SVG como base
+2. Convertir a PNG de 32x32 píxeles
+3. Colocar en esta ubicación: /public/favicon-32x32.png
+
+El favicon SVG ya está funcionando, pero para máxima compatibilidad con navegadores antiguos, se recomienda tener también un PNG.
+
+## Colores del logo:
+- Fondo: #22c55e (verde)
+- Elementos: #ffffff (blanco)
+- Texto: #ffffff (blanco)
+
+## Estructura del logo:
+- Círculo verde de fondo
+- Hoja estilizada blanca
+- Tallo blanco
+- Iniciales "EE" en blanco

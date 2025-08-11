@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Fondo circular verde -->
+  <circle cx="16" cy="16" r="16" fill="#22c55e"/>
+  
+  <!-- Hoja estilizada -->
+  <path d="M16 6c-2 0-4 1-5 3-1 2-1 4 0 6 1 2 3 3 5 3s4-1 5-3c1-2 1-4 0-6-1-2-3-3-5-3z" fill="#ffffff"/>
+  
+  <!-- Tallo de la hoja -->
+  <rect x="15" y="18" width="2" height="8" fill="#ffffff"/>
+  
+  <!-- Texto "EE" (EcoEventos) -->
+  <text x="16" y="28" font-family="Arial, sans-serif" font-size="6" font-weight="bold" text-anchor="middle" fill="#ffffff">EE</text>
+</svg>
