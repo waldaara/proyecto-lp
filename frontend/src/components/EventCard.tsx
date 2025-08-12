@@ -10,7 +10,6 @@ interface EventCardProps {
   date: string;
   location: string;
   participantCount: number;
-  category: string;
   onClick: () => void;
 }
 
@@ -20,7 +19,6 @@ const EventCard = ({
   date,
   location,
   participantCount,
-  category,
   onClick,
 }: EventCardProps) => {
   const formatDate = (dateString: string) => {
@@ -47,27 +45,18 @@ const EventCard = ({
     }
   };
 
-  const getCategoryBadge = (category: string) => {
-    const categoryStyles = {
-      minga: "bg-accent text-accent-foreground",
-      sembratón: "bg-gradient-primary text-primary-foreground",
-      taller: "bg-secondary text-secondary-foreground",
-      limpieza: "bg-muted text-muted-foreground",
-      upcoming: "bg-green-100 text-green-800", // Tag para eventos futuros
-    };
-
-    return (
-      categoryStyles[category as keyof typeof categoryStyles] ||
-      "bg-muted text-muted-foreground"
-    );
+  const getStatusBadge = (isUpcoming: boolean) => {
+    return isUpcoming 
+      ? "bg-green-100 text-green-800" 
+      : "bg-blue-100 text-blue-800";
   };
 
   // Determinar qué tag mostrar
   const getDisplayTag = () => {
     if (isUpcoming()) {
-      return { text: "Próximo", category: "upcoming" };
+      return { text: "Próximo", isUpcoming: true };
     }
-    return { text: "Evento", category: "evento" };
+    return { text: "Evento", isUpcoming: false };
   };
 
   const displayTag = getDisplayTag();
@@ -77,8 +66,8 @@ const EventCard = ({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <Badge
-            className={`${getCategoryBadge(
-              displayTag.category
+            className={`${getStatusBadge(
+              displayTag.isUpcoming
             )} capitalize px-3 py-1 text-sm font-medium`}
           >
             {displayTag.text}

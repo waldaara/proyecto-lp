@@ -16,9 +16,13 @@ import {
   FileText,
   Mail,
   User,
-  Edit
+  Edit,
+  Trash2
 } from "lucide-react";
+import eventService from "@/services/eventService";
+import participantService from "@/services/participantService";
 import Navbar from "@/components/Navbar";
+import { Event as ApiEvent, Participant as ApiParticipant } from "@/api/types";
 
 interface Event {
   id: string;
@@ -27,7 +31,6 @@ interface Event {
   date: string;
   time: string;
   location: string;
-  category: string;
   participants: Participant[];
 }
 
@@ -49,50 +52,68 @@ const EventDetails = () => {
   const { toast } = useToast();
   
   const [event, setEvent] = useState<Event | null>(null);
+  const [backendEvent, setBackendEvent] = useState<ApiEvent | null>(null);
+  const [participants, setParticipants] = useState<ApiParticipant[]>([]);
   const [registrationForm, setRegistrationForm] = useState<RegistrationForm>({
     name: "",
     email: "",
   });
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Mock data - en una app real vendría de la API
+  // Cargar datos del evento desde la API
   useEffect(() => {
-    const mockEvent: Event = {
-      id: id || "1",
-      title: "Minga de Limpieza del Río Verde",
-      description: "Únete a nosotros en esta importante actividad comunitaria para limpiar las orillas del Río Verde. Traeremos todos los materiales necesarios como bolsas, guantes y herramientas de limpieza. Es una excelente oportunidad para contribuir al cuidado del medio ambiente mientras nos conectamos con la comunidad. Al finalizar, compartiremos un refrigerio saludable preparado con productos locales.",
-      date: "2024-08-15",
-      time: "08:00",
-      location: "Puente del Río Verde, Sector Los Álamos",
-      category: "minga",
-      participants: [
-        {
-          id: "1",
-          name: "María González",
-          email: "maria@email.com",
-          registeredAt: "2024-08-10T10:00:00Z",
-        },
-        {
-          id: "2",
-          name: "Carlos López",
-          email: "carlos@email.com",
-          registeredAt: "2024-08-11T14:30:00Z",
-        },
-        {
-          id: "3",
-          name: "Ana Martínez",
-          email: "ana@email.com",
-          registeredAt: "2024-08-12T09:15:00Z",
-        },
-      ],
+    const loadEventData = async () => {
+      try {
+        if (!id) {
+          navigate("/");
+          return;
+        }
+
+        const apiEvent = await eventService.getEvent(parseInt(id));
+        setBackendEvent(apiEvent);
+        
+        // Cargar participantes del evento
+        const eventParticipants = await participantService.getEventParticipants(parseInt(id));
+        setParticipants(eventParticipants);
+        
+        // Convertir el evento de la API al formato local
+        const eventDate = new Date(apiEvent.date);
+        const dateStr = eventDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        const timeStr = eventDate.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
+
+        const localEvent: Event = {
+          id: apiEvent.id.toString(),
+          title: apiEvent.title,
+          description: apiEvent.description,
+          date: dateStr,
+          time: timeStr,
+          location: apiEvent.location,
+          participants: eventParticipants.map(p => ({
+            id: p.id.toString(),
+            name: p.name,
+            email: p.email,
+            registeredAt: p.created_at
+          })),
+        };
+
+        setEvent(localEvent);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error loading event:", error);
+        toast({
+          title: "Error",
+          description: "No se pudo cargar la información del evento.",
+          variant: "destructive",
+        });
+        navigate("/");
+      }
     };
 
-    setTimeout(() => {
-      setEvent(mockEvent);
-      setLoading(false);
-    }, 500);
-  }, [id]);
+    loadEventData();
+  }, [id, navigate, toast]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -114,18 +135,34 @@ const EventDetails = () => {
     }
 
     try {
-      // Simular registro
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (!backendEvent) {
+        throw new Error("No se ha cargado el evento");
+      }
 
-      const newParticipant: Participant = {
-        id: Date.now().toString(),
-        name: registrationForm.name,
-        email: registrationForm.email,
-        registeredAt: new Date().toISOString(),
+      // Registrar participante usando el backend
+      const newParticipant = await participantService.registerParticipant(
+        backendEvent.id,
+        {
+          participant: {
+            name: registrationForm.name,
+            email: registrationForm.email
+          }
+        }
+      );
+
+      // Actualizar la lista de participantes
+      setParticipants(prev => [...prev, newParticipant]);
+
+      // Actualizar el evento local con el nuevo participante
+      const localParticipant: Participant = {
+        id: newParticipant.id.toString(),
+        name: newParticipant.name,
+        email: newParticipant.email,
+        registeredAt: newParticipant.created_at,
       };
 
       setEvent((prev) => 
-        prev ? { ...prev, participants: [...prev.participants, newParticipant] } : null
+        prev ? { ...prev, participants: [...prev.participants, localParticipant] } : null
       );
 
       setRegistrationForm({ name: "", email: "" });
@@ -145,6 +182,76 @@ const EventDetails = () => {
     }
   };
 
+  const handleDeleteEvent = async () => {
+    if (!event || !id) return;
+
+    const confirmed = window.confirm(
+      `¿Estás seguro de que quieres eliminar el evento "${event.title}"? Esta acción no se puede deshacer.`
+    );
+
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+
+    try {
+      await eventService.deleteEvent(parseInt(id));
+
+      toast({
+        title: "Evento eliminado",
+        description: "El evento ha sido eliminado exitosamente.",
+      });
+
+      navigate("/");
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      toast({
+        title: "Error",
+        description: "Hubo un problema al eliminar el evento. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteParticipant = async (participantId: string) => {
+    const participant = participants.find(p => p.id.toString() === participantId);
+    if (!participant) return;
+
+    const confirmed = window.confirm(
+      `¿Estás seguro de que quieres eliminar a ${participant.name} del evento? Esta acción no se puede deshacer.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await participantService.cancelParticipation(parseInt(participantId));
+
+      // Actualizar la lista de participantes
+      setParticipants(prev => prev.filter(p => p.id.toString() !== participantId));
+
+      // Actualizar el evento local
+      setEvent(prev => 
+        prev ? { 
+          ...prev, 
+          participants: prev.participants.filter(p => p.id !== participantId) 
+        } : null
+      );
+
+      toast({
+        title: "Participante eliminado",
+        description: `${participant.name} ha sido eliminado del evento.`,
+      });
+    } catch (error) {
+      console.error("Error deleting participant:", error);
+      toast({
+        title: "Error",
+        description: "Hubo un problema al eliminar el participante. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("es-ES", {
@@ -157,17 +264,6 @@ const EventDetails = () => {
 
   const formatTime = (timeString: string) => {
     return timeString ? `${timeString} hrs` : "";
-  };
-
-  const getCategoryBadge = (category: string) => {
-    const categoryStyles = {
-      minga: "bg-accent text-accent-foreground",
-      sembratón: "bg-gradient-primary text-primary-foreground",
-      taller: "bg-secondary text-secondary-foreground",
-      limpieza: "bg-muted text-muted-foreground",
-    };
-
-    return categoryStyles[category as keyof typeof categoryStyles] || "bg-muted text-muted-foreground";
   };
 
   if (loading) {
@@ -223,14 +319,11 @@ const EventDetails = () => {
             <Card className="shadow-card border-0 bg-background">
               <CardHeader>
                 <div className="flex items-start justify-between">
-                  <Badge className={`${getCategoryBadge(event.category)} capitalize px-3 py-1 text-sm font-medium`}>
-                    {event.category}
-                  </Badge>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Users className="h-4 w-4 mr-1" />
+                    {event.participants.length} participantes
+                  </div>
                   <div className="flex items-center space-x-4">
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Users className="h-4 w-4 mr-1" />
-                      {event.participants.length} participantes
-                    </div>
                     <Button
                       variant="outline"
                       size="sm"
@@ -239,6 +332,16 @@ const EventDetails = () => {
                     >
                       <Edit className="h-4 w-4 mr-1" />
                       Editar
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleDeleteEvent}
+                      disabled={isDeleting}
+                      className="hover:bg-destructive/90"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      {isDeleting ? "Eliminando..." : "Eliminar"}
                     </Button>
                   </div>
                 </div>
@@ -308,8 +411,18 @@ const EventDetails = () => {
                             <p className="text-sm text-muted-foreground">{participant.email}</p>
                           </div>
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(participant.registeredAt).toLocaleDateString("es-ES")}
+                        <div className="flex items-center space-x-3">
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(participant.registeredAt).toLocaleDateString("es-ES")}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteParticipant(participant.id)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     ))}

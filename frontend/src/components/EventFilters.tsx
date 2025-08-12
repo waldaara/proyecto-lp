@@ -14,7 +14,6 @@ interface EventFiltersProps {
 interface FilterOptions {
   search: string;
   date: string;
-  category: string;
 }
 
 const EventFilters = ({ filters, onFilterChange }: EventFiltersProps) => {
@@ -27,15 +26,14 @@ const EventFilters = ({ filters, onFilterChange }: EventFiltersProps) => {
   };
 
   const clearFilters = () => {
-    const clearedFilters = { search: "", date: "todos", category: "todos" };
+    const clearedFilters = { search: "", date: "todos" };
     setLocalFilters(clearedFilters);
     onFilterChange(clearedFilters);
   };
 
   const hasActiveFilters =
     localFilters.search ||
-    (localFilters.date && localFilters.date !== "todos") ||
-    (localFilters.category && localFilters.category !== "todos");
+    (localFilters.date && localFilters.date !== "todos");
 
   return (
     <Card className="shadow-soft border-0 bg-gradient-subtle">
@@ -97,33 +95,6 @@ const EventFilters = ({ filters, onFilterChange }: EventFiltersProps) => {
               <option value="week">Esta semana</option>
               <option value="month">Este mes</option>
             </select>
-          </div>
-        </div>
-
-        {/* Category Filter - Mantenido por compatibilidad pero no usado en el backend */}
-        <div className="space-y-2">
-          <Label htmlFor="category" className="text-sm font-medium">
-            Categoría
-          </Label>
-          <div className="flex flex-wrap gap-2">
-            {["todos", "minga", "sembratón", "taller", "limpieza"].map(
-              (category) => (
-                <Badge
-                  key={category}
-                  variant={
-                    localFilters.category === category ? "default" : "secondary"
-                  }
-                  className={`cursor-pointer transition-colors duration-200 ${
-                    localFilters.category === category
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                  }`}
-                  onClick={() => handleFilterChange("category", category)}
-                >
-                  {category === "todos" ? "Todas" : category}
-                </Badge>
-              )
-            )}
           </div>
         </div>
 

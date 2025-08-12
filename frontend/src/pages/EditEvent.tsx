@@ -5,10 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, MapPin, FileText, Tag, ArrowLeft, Save } from "lucide-react";
+import { Calendar, MapPin, FileText, ArrowLeft, Save, Trash2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import eventService from "@/services/eventService";
 
 interface EventFormData {
   title: string;
@@ -16,7 +16,6 @@ interface EventFormData {
   date: string;
   time: string;
   location: string;
-  category: string;
 }
 
 const EditEvent = () => {
@@ -30,33 +29,40 @@ const EditEvent = () => {
     date: "",
     time: "",
     location: "",
-    category: "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  const categories = ["minga", "sembratón", "taller", "limpieza"];
 
   // Cargar datos del evento
   useEffect(() => {
     const loadEventData = async () => {
       try {
-        // Simular carga de datos - en una app real sería una llamada a la API
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        if (!id) {
+          navigate("/");
+          return;
+        }
+
+        const event = await eventService.getEvent(parseInt(id));
         
-        const mockEventData: EventFormData = {
-          title: "Minga de Limpieza del Río Verde",
-          description: "Únete a nosotros en esta importante actividad comunitaria para limpiar las orillas del Río Verde. Traeremos todos los materiales necesarios como bolsas, guantes y herramientas de limpieza. Es una excelente oportunidad para contribuir al cuidado del medio ambiente mientras nos conectamos con la comunidad. Al finalizar, compartiremos un refrigerio saludable preparado con productos locales.",
-          date: "2024-08-15",
-          time: "08:00",
-          location: "Puente del Río Verde, Sector Los Álamos",
-          category: "minga",
+        // Convertir la fecha del backend al formato del formulario
+        const eventDate = new Date(event.date);
+        const dateStr = eventDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        const timeStr = eventDate.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
+
+        const formData: EventFormData = {
+          title: event.title,
+          description: event.description,
+          date: dateStr,
+          time: timeStr,
+          location: event.location,
         };
 
-        setFormData(mockEventData);
+        setFormData(formData);
         setLoading(false);
       } catch (error) {
+        console.error("Error loading event:", error);
         toast({
           title: "Error",
           description: "No se pudo cargar la información del evento.",
@@ -76,16 +82,12 @@ const EditEvent = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleCategorySelect = (category: string) => {
-    setFormData((prev) => ({ ...prev, category }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     // Validación básica
-    if (!formData.title || !formData.description || !formData.date || !formData.location || !formData.category) {
+    if (!formData.title || !formData.description || !formData.date || !formData.location) {
       toast({
         title: "Error",
         description: "Por favor, completa todos los campos obligatorios.",
@@ -96,8 +98,23 @@ const EditEvent = () => {
     }
 
     try {
-      // Aquí iría la lógica para actualizar en base de datos
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simular API call
+      if (!id) {
+        throw new Error("ID del evento no encontrado");
+      }
+
+      // Combinar fecha y hora en formato ISO para el backend
+      const dateTime = new Date(`${formData.date}T${formData.time}`).toISOString();
+      
+      const eventData = {
+        event: {
+          title: formData.title,
+          description: formData.description,
+          date: dateTime,
+          location: formData.location,
+        }
+      };
+
+      await eventService.updateEvent(parseInt(id), eventData);
 
       toast({
         title: "¡Evento actualizado exitosamente!",
@@ -106,6 +123,7 @@ const EditEvent = () => {
 
       navigate(`/evento/${id}`);
     } catch (error) {
+      console.error("Error updating event:", error);
       toast({
         title: "Error",
         description: "Hubo un problema al actualizar el evento. Inténtalo de nuevo.",
@@ -113,6 +131,38 @@ const EditEvent = () => {
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!id) return;
+
+    const confirmed = window.confirm(
+      `¿Estás seguro de que quieres eliminar el evento "${formData.title}"? Esta acción no se puede deshacer.`
+    );
+
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+
+    try {
+      await eventService.deleteEvent(parseInt(id));
+
+      toast({
+        title: "Evento eliminado",
+        description: "El evento ha sido eliminado exitosamente.",
+      });
+
+      navigate("/");
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      toast({
+        title: "Error",
+        description: "Hubo un problema al eliminar el evento. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -255,36 +305,32 @@ const EditEvent = () => {
                 </div>
               </div>
 
-              {/* Category */}
-              <div className="space-y-3">
-                <Label className="text-sm font-medium flex items-center space-x-2">
-                  <Tag className="h-4 w-4" />
-                  <span>Categoría *</span>
-                </Label>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((category) => (
-                    <Badge
-                      key={category}
-                      variant={formData.category === category ? "default" : "secondary"}
-                      className={`cursor-pointer transition-all duration-300 hover:shadow-soft capitalize px-4 py-2 ${
-                        formData.category === category
-                          ? "bg-gradient-primary text-primary-foreground"
-                          : "hover:bg-accent hover:text-accent-foreground"
-                      }`}
-                      onClick={() => handleCategorySelect(category)}
-                    >
-                      {category}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <div className="flex justify-end pt-4">
+              {/* Buttons */}
+              <div className="flex justify-between pt-4">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleDeleteEvent}
+                  disabled={isDeleting || isSubmitting}
+                  className="px-6"
+                >
+                  {isDeleting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-destructive-foreground mr-2" />
+                      Eliminando...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Eliminar Evento
+                    </>
+                  )}
+                </Button>
+                
                 <Button
                   type="submit"
                   variant="hero"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isDeleting}
                   className="px-8"
                 >
                   {isSubmitting ? (

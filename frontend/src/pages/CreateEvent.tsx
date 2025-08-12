@@ -5,10 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, MapPin, FileText, Tag, ArrowLeft, Save } from "lucide-react";
+import { Calendar, MapPin, FileText, ArrowLeft, Save } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import eventService from "@/services/eventService";
 
 interface EventFormData {
   title: string;
@@ -16,7 +16,6 @@ interface EventFormData {
   date: string;
   time: string;
   location: string;
-  category: string;
 }
 
 const CreateEvent = () => {
@@ -29,12 +28,9 @@ const CreateEvent = () => {
     date: "",
     time: "",
     location: "",
-    category: "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const categories = ["minga", "sembratón", "taller", "limpieza"];
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -43,16 +39,12 @@ const CreateEvent = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleCategorySelect = (category: string) => {
-    setFormData((prev) => ({ ...prev, category }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     // Validación básica
-    if (!formData.title || !formData.description || !formData.date || !formData.location || !formData.category) {
+    if (!formData.title || !formData.description || !formData.date || !formData.location) {
       toast({
         title: "Error",
         description: "Por favor, completa todos los campos obligatorios.",
@@ -63,8 +55,19 @@ const CreateEvent = () => {
     }
 
     try {
-      // Aquí iría la lógica para guardar en base de datos
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simular API call
+      // Combinar fecha y hora en formato ISO para el backend
+      const dateTime = new Date(`${formData.date}T${formData.time}`).toISOString();
+      
+      const eventData = {
+        event: {
+          title: formData.title,
+          description: formData.description,
+          date: dateTime,
+          location: formData.location,
+        }
+      };
+
+      await eventService.createEvent(eventData);
 
       toast({
         title: "¡Evento creado exitosamente!",
@@ -73,6 +76,7 @@ const CreateEvent = () => {
 
       navigate("/");
     } catch (error) {
+      console.error("Error creating event:", error);
       toast({
         title: "Error",
         description: "Hubo un problema al crear el evento. Inténtalo de nuevo.",
@@ -205,30 +209,6 @@ const CreateEvent = () => {
                     className="pl-10 bg-background border-border focus:border-primary"
                     required
                   />
-                </div>
-              </div>
-
-              {/* Category */}
-              <div className="space-y-3">
-                <Label className="text-sm font-medium flex items-center space-x-2">
-                  <Tag className="h-4 w-4" />
-                  <span>Categoría *</span>
-                </Label>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((category) => (
-                    <Badge
-                      key={category}
-                      variant={formData.category === category ? "default" : "secondary"}
-                      className={`cursor-pointer transition-all duration-300 hover:shadow-soft capitalize px-4 py-2 ${
-                        formData.category === category
-                          ? "bg-gradient-primary text-primary-foreground"
-                          : "hover:bg-accent hover:text-accent-foreground"
-                      }`}
-                      onClick={() => handleCategorySelect(category)}
-                    >
-                      {category}
-                    </Badge>
-                  ))}
                 </div>
               </div>
 

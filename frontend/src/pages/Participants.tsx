@@ -3,76 +3,41 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { User, Mail, Calendar, Search, Users, TrendingUp } from "lucide-react";
+import { User, Mail, Calendar, Search, Users, TrendingUp, MapPin, Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import participantService from "@/services/participantService";
+import { Event } from "@/api/types";
 
-interface Participant {
-  id: string;
+interface UniqueParticipant {
   name: string;
   email: string;
-  eventsAttended: number;
+  events: Event[];
+  totalEvents: number;
+  firstRegistration: string;
   lastEvent: string;
-  favoriteCategory: string;
-  joinDate: string;
 }
 
 const Participants = () => {
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [filteredParticipants, setFilteredParticipants] = useState<Participant[]>([]);
+  const [participants, setParticipants] = useState<UniqueParticipant[]>([]);
+  const [filteredParticipants, setFilteredParticipants] = useState<UniqueParticipant[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  // Mock data
+  // Cargar participantes reales del backend
   useEffect(() => {
-    const mockParticipants: Participant[] = [
-      {
-        id: "1",
-        name: "María González",
-        email: "maria@email.com",
-        eventsAttended: 5,
-        lastEvent: "Minga de Limpieza del Río Verde",
-        favoriteCategory: "minga",
-        joinDate: "2024-01-15",
-      },
-      {
-        id: "2",
-        name: "Carlos López",
-        email: "carlos@email.com",
-        eventsAttended: 3,
-        lastEvent: "Sembratón de Árboles Nativos",
-        favoriteCategory: "sembratón",
-        joinDate: "2024-02-20",
-      },
-      {
-        id: "3",
-        name: "Ana Martínez",
-        email: "ana@email.com",
-        eventsAttended: 7,
-        lastEvent: "Taller de Compostaje Doméstico",
-        favoriteCategory: "taller",
-        joinDate: "2023-11-10",
-      },
-      {
-        id: "4",
-        name: "Pedro Rodríguez",
-        email: "pedro@email.com",
-        eventsAttended: 2,
-        lastEvent: "Limpieza de Playas Locales",
-        favoriteCategory: "limpieza",
-        joinDate: "2024-03-05",
-      },
-      {
-        id: "5",
-        name: "Laura Fernández",
-        email: "laura@email.com",
-        eventsAttended: 4,
-        lastEvent: "Minga de Limpieza del Río Verde",
-        favoriteCategory: "minga",
-        joinDate: "2024-01-30",
-      },
-    ];
+    const loadParticipants = async () => {
+      try {
+        const uniqueParticipants = await participantService.getUniqueParticipants();
+        setParticipants(uniqueParticipants);
+        setFilteredParticipants(uniqueParticipants);
+      } catch (error) {
+        console.error('Error loading participants:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    setParticipants(mockParticipants);
-    setFilteredParticipants(mockParticipants);
+    loadParticipants();
   }, []);
 
   // Filtrar participantes
@@ -84,22 +49,13 @@ const Participants = () => {
         (participant) =>
           participant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           participant.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          participant.favoriteCategory.toLowerCase().includes(searchTerm.toLowerCase())
+          participant.events.some(event => 
+            event.title.toLowerCase().includes(searchTerm.toLowerCase())
+          )
       );
       setFilteredParticipants(filtered);
     }
   }, [searchTerm, participants]);
-
-  const getCategoryBadge = (category: string) => {
-    const categoryStyles = {
-      minga: "bg-accent text-accent-foreground",
-      sembratón: "bg-gradient-primary text-primary-foreground",
-      taller: "bg-secondary text-secondary-foreground",
-      limpieza: "bg-muted text-muted-foreground",
-    };
-
-    return categoryStyles[category as keyof typeof categoryStyles] || "bg-muted text-muted-foreground";
-  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -110,9 +66,27 @@ const Participants = () => {
     });
   };
 
-  const totalEvents = participants.reduce((sum, p) => sum + p.eventsAttended, 0);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle">
+        <Navbar />
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-lg text-muted-foreground">
+                Cargando participantes...
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const totalEvents = participants.reduce((sum, p) => sum + p.totalEvents, 0);
   const avgEventsPerParticipant = participants.length > 0 ? (totalEvents / participants.length).toFixed(1) : 0;
-  const mostActiveParticipant = participants.reduce((max, p) => p.eventsAttended > max.eventsAttended ? p : max, participants[0]);
+  const mostActiveParticipant = participants.reduce((max, p) => p.totalEvents > max.totalEvents ? p : max, participants[0]);
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -172,7 +146,7 @@ const Participants = () => {
               <div className="flex items-center space-x-2">
                 <User className="h-8 w-8 text-primary" />
                 <div>
-                  <p className="text-xl font-bold text-foreground">{mostActiveParticipant?.eventsAttended || 0}</p>
+                  <p className="text-xl font-bold text-foreground">{mostActiveParticipant?.totalEvents || 0}</p>
                   <p className="text-sm text-muted-foreground">Más Activo/a</p>
                 </div>
               </div>
@@ -238,13 +212,13 @@ const Participants = () => {
               </Card>
             ) : (
               <div className="space-y-4">
-                {filteredParticipants.map((participant) => (
+                {filteredParticipants.map((participant, index) => (
                   <Card
-                    key={participant.id}
+                    key={`${participant.email}-${index}`}
                     className="shadow-soft border-0 bg-background hover:shadow-card transition-all duration-300"
                   >
                     <CardContent className="p-6">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
+                      <div className="flex flex-col md:flex-row md:items-start justify-between space-y-4 md:space-y-0">
                         <div className="flex items-center space-x-4">
                           <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center">
                             <User className="h-6 w-6 text-primary-foreground" />
@@ -263,31 +237,40 @@ const Participants = () => {
                         <div className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-6">
                           <div className="text-center md:text-left">
                             <p className="text-lg font-bold text-primary">
-                              {participant.eventsAttended}
+                              {participant.totalEvents}
                             </p>
                             <p className="text-xs text-muted-foreground">eventos</p>
                           </div>
 
                           <div className="text-center md:text-left">
-                            <Badge className={`${getCategoryBadge(participant.favoriteCategory)} capitalize`}>
-                              {participant.favoriteCategory}
-                            </Badge>
-                            <p className="text-xs text-muted-foreground mt-1">categoría favorita</p>
-                          </div>
-
-                          <div className="text-center md:text-left">
                             <p className="text-sm font-medium text-foreground">
-                              {formatDate(participant.joinDate)}
+                              {formatDate(participant.firstRegistration)}
                             </p>
                             <p className="text-xs text-muted-foreground">se unió</p>
                           </div>
                         </div>
                       </div>
 
+                      {/* Lista de eventos */}
                       <div className="mt-4 pt-4 border-t border-border">
-                        <p className="text-sm text-muted-foreground">
-                          <span className="font-medium">Último evento:</span> {participant.lastEvent}
+                        <p className="text-sm font-medium text-foreground mb-2">
+                          Eventos participados:
                         </p>
+                        <div className="space-y-2">
+                          {participant.events.map((event, eventIndex) => (
+                            <div key={`${event.id}-${eventIndex}`} className="flex items-center justify-between text-sm">
+                              <div>
+                                <span className="font-medium text-foreground">{event.title}</span>
+                                <div className="flex items-center space-x-1 text-muted-foreground mt-1">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>{formatDate(event.date)}</span>
+                                  <MapPin className="h-3 w-3 ml-2" />
+                                  <span>{event.location}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

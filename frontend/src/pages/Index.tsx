@@ -13,7 +13,6 @@ import { filterEventsByText } from "@/services/apiUtils";
 interface FilterOptions {
   search: string;
   date: string;
-  category: string;
 }
 
 const Index = () => {
@@ -26,7 +25,6 @@ const Index = () => {
   const [filters, setFilters] = useState<FilterOptions>({
     search: "",
     date: "todos",
-    category: "todos",
   });
 
   // Eventos filtrados localmente (solo búsqueda de texto)
@@ -109,6 +107,23 @@ const Index = () => {
     }
   };
 
+  // Calcular contadores basados en eventos mostrados
+  const getActiveEventsCount = () => {
+    const currentDate = new Date();
+    return filteredEvents.filter(event => {
+      const eventDate = new Date(event.date);
+      return eventDate < currentDate;
+    }).length;
+  };
+
+  const getUpcomingEventsCount = () => {
+    const currentDate = new Date();
+    return filteredEvents.filter(event => {
+      const eventDate = new Date(event.date);
+      return eventDate >= currentDate;
+    }).length;
+  };
+
   const handleEventClick = (eventId: number) => {
     navigate(`/evento/${eventId}`);
   };
@@ -185,14 +200,14 @@ const Index = () => {
           <div className="bg-white/50 backdrop-blur-sm rounded-xl p-6 text-center border border-white/20">
             <Calendar className="h-8 w-8 text-primary mx-auto mb-2" />
             <p className="text-2xl font-bold text-foreground">
-              {events.length}
+              {getActiveEventsCount()}
             </p>
             <p className="text-muted-foreground">Eventos Activos</p>
           </div>
           <div className="bg-white/50 backdrop-blur-sm rounded-xl p-6 text-center border border-white/20">
             <Users className="h-8 w-8 text-primary mx-auto mb-2" />
             <p className="text-2xl font-bold text-foreground">
-              {events.reduce(
+              {filteredEvents.reduce(
                 (total, event) => total + (event.participants_count || 0),
                 0
               )}
@@ -202,8 +217,7 @@ const Index = () => {
           <div className="bg-white/50 backdrop-blur-sm rounded-xl p-6 text-center border border-white/20">
             <Sparkles className="h-8 w-8 text-primary mx-auto mb-2" />
             <p className="text-2xl font-bold text-foreground">
-              {/* Usar filtro del backend para eventos futuros */}
-              {filters.date === "upcoming" ? events.length : "..."}
+              {getUpcomingEventsCount()}
             </p>
             <p className="text-muted-foreground">Eventos Futuros</p>
           </div>
@@ -275,7 +289,6 @@ const Index = () => {
                     date={event.date}
                     location={event.location}
                     participantCount={event.participants_count || 0}
-                    category="evento" // Categoría por defecto ya que el backend no la tiene
                     onClick={() => handleEventClick(event.id)}
                   />
                 ))}
@@ -301,7 +314,6 @@ const Index = () => {
                         setFilters({
                           search: "",
                           date: "todos",
-                          category: "todos",
                         })
                       }
                     >
